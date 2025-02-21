@@ -61,6 +61,10 @@ const router = new Router({
         {
           path: '/:type/:id',
           component: r => require.ensure([], () => r(require('@/views/blog/BlogCategoryTag')), 'blogcategorytag')
+        },
+        {
+          path: '/PdfUpload',  // 添加文件转换路由
+          component: r => require.ensure([], () => r(require('@/views/PdfUpload')), 'pdfupload')
         }
       ]
     },
