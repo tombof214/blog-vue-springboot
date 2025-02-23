@@ -65,6 +65,10 @@ const router = new Router({
         {
           path: '/PdfUpload',  // 添加文件转换路由
           component: r => require.ensure([], () => r(require('@/views/PdfUpload')), 'pdfupload')
+        },
+        {
+          path: '/memo',  // 添加文件转换路由
+          component: r => require.ensure([], () => r(require('@/views/memo')), 'memo')
         }
       ]
     },

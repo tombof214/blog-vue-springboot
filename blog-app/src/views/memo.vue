@@ -27,6 +27,7 @@ import { Message } from 'element-ui';
 import axios from 'axios';
 
 export default {
+  name: 'memo',
   data() {
     return {
       newMemo: '', // 新备忘录内容

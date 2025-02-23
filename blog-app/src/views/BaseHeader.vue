@@ -18,6 +18,7 @@
           <el-menu-item index="/log">日志</el-menu-item>
           <el-menu-item index="/messageBoard">留言板</el-menu-item>
           <el-menu-item index="/PdfUpload">文件转换</el-menu-item>
+          <el-menu-item index="/memo">备忘录</el-menu-item>
           <el-col :span="4" :offset="4">
             <el-menu-item index="/write"><i class="el-icon-edit"></i>写文章</el-menu-item>
           </el-col>
