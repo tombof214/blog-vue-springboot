@@ -42,19 +42,20 @@ export default {
         Message.warning('请输入备忘录和提醒时间');
         return;
       }
-
+      const isoDate = new Date(this.reminderTime).toISOString();
       // 调用后端 API 将提醒内容和时间发送到后端
-      axios.post('http://localhost:8888/api/memo', {
-        memoText: this.newMemo,
-        reminderTime: this.reminderTime
-      }).then(response => {
-        Message.success('备忘录已添加');
-        this.newMemo = '';
-        this.reminderTime = '';
-        this.getMemos(); // 每次添加新备忘录后，刷新备忘录列表
-      }).catch(error => {
-        Message.error('添加失败');
-      });
+      axios.post('http://localhost:8888/api/memo',
+        `memoText=${this.newMemo}&reminderTime=${isoDate}`,
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+        .then(response => {
+          Message.success('备忘录已添加');
+          this.newMemo = '';
+          this.reminderTime = '';
+          this.getMemos(); // 每次添加新备忘录后，刷新备忘录列表
+        })
+        .catch(error => {
+          Message.error('添加失败');
+        });
     },
 
     // 删除备忘录

@@ -22,6 +22,7 @@ Vue.use(Router)
 
 const router = new Router({
   routes: [
+
     {
       path: '/write/:id?',
       component: r => require.ensure([], () => r(require('@/views/blog/BlogWrite')), 'blogwrite'),
@@ -69,6 +70,10 @@ const router = new Router({
         {
           path: '/memo',  // 添加文件转换路由
           component: r => require.ensure([], () => r(require('@/views/memo')), 'memo')
+        },
+        {
+          path: '/MemoCalendar',  // 添加文件转换路由
+          component: r => require.ensure([], () => r(require('@/views/MemoCalendar')), 'MemoCalendar')
         }
       ]
     },
