@@ -1,8 +1,8 @@
 <template>
   <el-card>
-    <h1 class="me-author-name">shimh</h1>
+    <h1 class="me-author-name">CzmQu1t</h1>
     <div class="me-author-description">
-      <span><i class="el-icon-location-outline"></i> &nbsp;山东&济南</span>
+      <span><i class="el-icon-location-outline"></i> &nbsp;武汉</span>
       <span><i class="me-icon-job"></i> &nbsp;java开发工程师</span>
     </div>
     <div class="me-author-tool">

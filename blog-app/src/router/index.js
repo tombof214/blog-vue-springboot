@@ -31,6 +31,13 @@ const router = new Router({
       },
     },
     {
+      path: '/MemoWrite',
+      component: r => require.ensure([], () => r(require('@/views/MemoWrite')), 'MemoWrite'),
+      // meta: {
+      //   requireLogin: true
+      // },
+    },
+    {
       path: '',
       name: 'Home',
       component: Home,

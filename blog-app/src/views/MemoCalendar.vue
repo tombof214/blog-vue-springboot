@@ -1,155 +1,187 @@
 <template>
-  <div class="calendar-container">
-    <el-calendar v-model="value" id="calendar">
-      <!-- Custom render for each day in the calendar -->
-      <template
-        slot="dateCell"
-        slot-scope="{ date, data }">
-        <div class="date-cell">
-          <!-- Display the day of the month -->
-          <div class="calendar-day">{{ data.day.split('-').slice(2).join('-') }}</div>
-
-          <!-- Check for events on that day -->
-          <div v-for="item in calendarData" :key="item.things">
-            <div v-if="item.months.includes(data.day.split('-').slice(1)[0])">
-              <div v-if="item.days.includes(data.day.split('-').slice(2).join('-'))">
-                <el-tooltip class="item" effect="dark" :content="item.things" placement="right">
-                  <div class="has-memo"></div>
-                </el-tooltip>
-              </div>
-            </div>
+  <div id="customizedCalendar">
+    <el-calendar :first-day-of-week="7" v-model="value">
+      <template slot="dateCell" slot-scope="{ date, data }">
+        <div
+          slot="reference"
+          class="div-Calendar"
+          @click="clickCalendar(data)"
+          style="position: relative; z-index: 10"
+        >
+          <p>{{ data.day.split('-').slice(2).join('-') }}</p>
+          <!-- Task input displayed below date -->
+          <div v-if="tasks[data.day]" class="task-list">
+            <el-tooltip class="item" effect="dark" :content="tasks[data.day]" placement="top">
+              <div class="task-name">{{ tasks[data.day] }}</div>
+            </el-tooltip>
           </div>
         </div>
+        <div v-if="data.isSelected" id="selectP"></div>
       </template>
     </el-calendar>
 
-    <div v-if="showMemo" class="memo-details">
-      <h3>备忘录：{{ currentDate }}</h3>
-      <ul>
-        <li v-for="memo in memosForSelectedDate" :key="memo.id">{{ memo.text }} ({{ memo.reminderTime }})</li>
-      </ul>
+    <div id="button">
+      <el-button @click="skip('preYear')" type="primary" round size="mini"><i class="el-icon-arrow-left"></i>年</el-button>
+      <el-button @click="skip('preMonth')" type="warning" round size="mini"><i class="el-icon-arrow-left"></i>月</el-button>
+      <el-button @click="skip('preDay')" type="success" round size="mini"><i class="el-icon-arrow-left"></i>日</el-button>
+      <el-button @click="skip('today')" type="info" round size="mini">今天</el-button>
+      <el-button @click="skip('postDay')" type="success" round size="mini">日<i class="el-icon-arrow-right"></i></el-button>
+      <el-button @click="skip('postMonth')" type="warning" round size="mini">月<i class="el-icon-arrow-right"></i></el-button>
+      <el-button @click="skip('postYear')" type="primary" round size="mini">年<i class="el-icon-arrow-right"></i></el-button>
     </div>
   </div>
 </template>
 
 <script>
-import axios from 'axios';
+import moment from 'moment'
+import PubSub from 'pubsub-js'
 
 export default {
-  name: "MemoCalendar",
+  name: "Calendar",
   data() {
     return {
-      calendarData: [
-        { months: ['09', '11'], days: ['15'], things: '看电影' },
-        { months: ['10', '11'], days: ['02'], things: '去公园野炊' },
-        { months: ['11'], days: ['02'], things: '看星星' },
-        { months: ['11'], days: ['02'], things: '看月亮' }
-      ],
       value: new Date(),
-      memos: [],
-      showMemo: false,
-      currentDate: "",
-      memosForSelectedDate: []
-    };
+      tasks: {
+        '2025-01-09': 'Task 1 - Meet with John',
+        '2025-01-17': 'Task 2 - Meeting with team',
+        '2025-01-23': 'Task 3 - Project deadline'
+      },
+      taskInput: '',
+      editingDay: null
+    }
   },
-  created() {
-    this.fetchMemos();
+  computed: {
+    selectDate() {
+      return moment(this.value).format("YYYY-MM-DD");
+    }
   },
   methods: {
-    fetchMemos() {
-      axios
-        .get('/api/memos')
-        .then(response => {
-          this.memos = response.data;
-        })
-        .catch(error => {
-          console.error("获取备忘录失败:", error);
-        });
+    skip(flag) {
+      if (flag === 'preYear') this.value = new Date(this.value.setFullYear(this.value.getFullYear() - 1));
+      else if (flag === 'preMonth') this.value = new Date(this.value.setMonth(this.value.getMonth() - 1));
+      else if (flag === 'preDay') this.value = new Date(this.value.setDate(this.value.getDate() - 1));
+      else if (flag === 'today') this.value = new Date();
+      else if (flag === 'postDay') this.value = new Date(this.value.setDate(this.value.getDate() + 1));
+      else if (flag === 'postMonth') this.value = new Date(this.value.setMonth(this.value.getMonth() + 1));
+      else if (flag === 'postYear') this.value = new Date(this.value.setFullYear(this.value.getFullYear() + 1));
     },
-
-    disabledDate(date) {
-      const currentTime = new Date().getTime();
-      return date.getTime() < currentTime;
-    },
-
-    dateCellRender(date) {
-      const dateStr = this.formatDate(date);
-      const memosForDate = this.memos.filter(memo => memo.reminderTime === dateStr);
-      return memosForDate.length > 0 ? (
-        <el-tooltip content="有备忘录" placement="top">
-          <div class="has-memo"></div>
-        </el-tooltip>
-      ) : null;
-    },
-
-    formatDate(date) {
-      const year = date.getFullYear();
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    },
-
-    handleDateChange(date) {
-      const selectedDate = this.formatDate(date);
-      this.showMemo = true;
-      this.memosForSelectedDate = this.memos.filter(memo => memo.reminderTime === selectedDate);
+    clickCalendar(data) {
+      // Here, we redirect to an edit page when a date cell is clicked
+      window.location.href = `/edit-task?date=${data.day}`;  // Simple redirection for now, can be replaced with routing
     }
   }
-};
+}
 </script>
 
-<style scoped>
-.calendar-container {
-  position: relative;
-  padding: 20px;
-}
+<style lang="scss" scoped>
+#customizedCalendar {
+  width: 100%;
+  height: 100%;
 
-.date-cell {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 80px;
-}
+  #button {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 
-.calendar-day {
-  text-align: center;
-  color: #202535;
-  line-height: 30px;
-  font-size: 12px;
-}
+  #selectP {
+    width: 30px;
+    height: 30px;
+    background-color: purple; /* Purple color for selected day circle */
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.6;
+  }
 
-.is-selected {
-  color: #F8A535;
-  font-size: 10px;
-  margin-top: 5px;
-}
+  ::v-deep .el-calendar__header {
+    background-color: #3c4b63;
+    padding: 3px 5px;
+    border: none;
+    display: flex;
+    justify-content: center;
 
-.has-memo {
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-  width: 12px;
-  height: 12px;
-  background-color: red;
-  border-radius: 50%;
-  border: 2px solid #fff; /* White border for better contrast */
-}
+    .el-calendar__button-group {
+      display: none;
+    }
 
-.memo-details {
-  margin-top: 20px;
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-}
+    .el-calendar__title {
+      color: white !important;
+      font-size: 18px;
+      font-weight: bolder;
+    }
+  }
 
-.memo-details h3 {
-  margin-bottom: 15px;
-  font-size: 1.2em;
-  color: #333;
-}
+  ::v-deep .el-calendar__body {
+    padding: 0;
+  }
 
-#calendar .el-button-group > .el-button:not(:first-child):not(:last-child):after {
-  content: '当月';
+  ::v-deep .el-calendar-table {
+    thead {
+      th {
+        padding: 0;
+        background-color: #3c4b63;
+        color: white;
+      }
+    }
+
+    .is-selected {
+      .el-calendar-day {
+        p {
+          color: black;
+        }
+      }
+    }
+
+    .el-calendar-day {
+      padding: 0;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+
+      p {
+        color: black;
+        z-index: 1;
+        user-select: none;
+      }
+    }
+  }
+
+  ::v-deep .el-calendar-table__row {
+    .prev, .next {
+      .el-calendar-day {
+        p {
+          color: #f0d9d5;
+        }
+      }
+    }
+
+    td {
+      &:first-child, &:last-child {
+        background-color: #f5f5f5;
+      }
+    }
+  }
+
+  .task-list {
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+    font-size: 12px;
+    color: #4caf50;
+  }
+
+  .task-name {
+    cursor: pointer;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  button {
+    padding: 3px 10px;
+  }
 }
 </style>

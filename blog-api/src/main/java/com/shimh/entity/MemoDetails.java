@@ -1,29 +1,63 @@
 package com.shimh.entity;
 
+import java.util.UUID;
+
 public class MemoDetails {
-    private String memoText;
-    private String reminderTime;
 
-    // 构造函数
-    public MemoDetails(String memoText, String reminderTime) {
-        this.memoText = memoText;
-        this.reminderTime = reminderTime;
+    private String id;  // Unique ID
+    private String title;
+    private String body;
+    private String createdDate;
+    private String dueDate;
+
+    // Constructors, getters, and setters
+
+    public MemoDetails(String title, String body, String createdDate, String dueDate) {
+        this.id = UUID.randomUUID().toString();  // Automatically generate ID
+        this.title = title;
+        this.body = body;
+        this.createdDate = createdDate;
+        this.dueDate = dueDate;
     }
 
-    // Getter和Setter方法
-    public String getMemoText() {
-        return memoText;
+    public String getId() {
+        return id;
     }
 
-    public void setMemoText(String memoText) {
-        this.memoText = memoText;
+    public void setId(String id) {
+        this.id = id;
     }
 
-    public String getReminderTime() {
-        return reminderTime;
+    public String getTitle() {
+        return title;
     }
 
-    public void setReminderTime(String reminderTime) {
-        this.reminderTime = reminderTime;
+    public void setTitle(String title) {
+        this.title = title;
     }
+
+    public String getBody() {
+        return body;
+    }
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public String getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(String createdDate) {
+        this.createdDate = createdDate;
+    }
+
+    public String getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(String dueDate) {
+        this.dueDate = dueDate;
+    }
+// Other getters and setters
 }

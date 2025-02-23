@@ -1,80 +1,104 @@
 <template>
   <div>
-    <h2>设置备忘录</h2>
-    <el-input v-model="newMemo" placeholder="输入新的备忘录"></el-input>
-    <el-date-picker
-      v-model="reminderTime"
-      type="datetime"
-      placeholder="选择deadline"
-    ></el-date-picker>
-    <el-button type="primary" @click="addMemo">添加备忘录</el-button>
+    <h2>备忘录管理</h2>
+    <!-- 跳转到 MemoWrite 页面 -->
+    <el-button type="primary" @click="goToWritePage">添加备忘录</el-button>
 
     <!-- 显示未过期的备忘录列表 -->
     <el-table :data="memos" style="margin-top: 20px;">
-      <el-table-column label="备忘录" prop="text"></el-table-column>
-      <el-table-column label="提醒时间" prop="time"></el-table-column>
+      <el-table-column label="备忘录" prop="title"></el-table-column>
+      <el-table-column label="截止时间" prop="dueDate"></el-table-column>
       <el-table-column label="操作">
         <template slot-scope="scope">
+          <el-button @click="viewMemo(scope.row)" type="info">查看</el-button>
+          <el-button @click="goToWritePage(scope.row)" type="primary">编辑</el-button>
           <el-button @click="deleteMemo(scope.$index)" type="danger">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 查看备忘录的弹框 -->
+    <el-dialog
+      :visible.sync="dialogVisible"
+      width="60%"
+      title="备忘录详情"
+      @close="resetDialog">
+      <div v-if="currentMemo">
+        <h3>{{ currentMemo.title }}</h3>
+        <p><strong>创建时间:</strong> {{ currentMemo.createdDate }}</p>
+        <p><strong>过期时间:</strong> {{ currentMemo.dueDate }}</p>
+        <!-- 使用 v-html 渲染正文 -->
+        <div v-html="currentMemo.body"></div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { Message } from 'element-ui';
 import axios from 'axios';
+import MarkdownEditor from '@/components/markdown/MarkdownEditor'
 
 export default {
-  name: 'memo',
+  name: 'Memo',
+  components: {
+    'markdown-editor': MarkdownEditor,
+  },
   data() {
     return {
-      newMemo: '', // 新备忘录内容
-      reminderTime: '', // 提醒时间
       memos: [], // 储存备忘录
+      dialogVisible: false, // 控制弹框的显示
+      currentMemo: null, // 当前查看的备忘录
     };
   },
   methods: {
-    // 添加备忘录
-    addMemo() {
-      if (!this.newMemo || !this.reminderTime) {
-        Message.warning('请输入备忘录和提醒时间');
-        return;
+    // 跳转到 MemoWrite 页面并传递数据
+    goToWritePage(memo) {
+      if (memo) {
+        this.$router.push({ path: '/MemoWrite', query: { memoId: memo.id } });
+      } else {
+        this.$router.push('/MemoWrite'); // 如果没有传递memo数据，则是新建
       }
-      const isoDate = new Date(this.reminderTime).toISOString();
-      // 调用后端 API 将提醒内容和时间发送到后端
-      axios.post('http://localhost:8888/api/memo',
-        `memoText=${this.newMemo}&reminderTime=${isoDate}`,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
-        .then(response => {
-          Message.success('备忘录已添加');
-          this.newMemo = '';
-          this.reminderTime = '';
-          this.getMemos(); // 每次添加新备忘录后，刷新备忘录列表
-        })
-        .catch(error => {
-          Message.error('添加失败');
-        });
+    },
+
+    // 查看备忘录详情
+    viewMemo(memo) {
+      this.currentMemo = memo;
+      console.log('Current Memo:', this.currentMemo); // 添加日志
+      this.dialogVisible = true; // 打开弹框
     },
 
     // 删除备忘录
     deleteMemo(index) {
-      this.memos.splice(index, 1);
+      const memo = this.memos[index];
+      axios.delete(`http://localhost:8888/api/memo/${memo.id}`)
+        .then(() => {
+          Message.success('备忘录已删除');
+          this.memos.splice(index, 1); // 删除前端的备忘录
+        })
+        .catch(error => {
+          Message.error('删除失败');
+          console.error('Error deleting memo:', error);
+        });
     },
 
     // 获取未过期的备忘录
     getMemos() {
       axios.get('http://localhost:8888/api/memos')
         .then(response => {
-          // 筛选出未过期的备忘录
-          const currentTime = new Date().getTime();
-          this.memos = response.data.filter(memo => new Date(memo.reminderTime).getTime() > currentTime);
+          console.log('Fetched memos:', response.data);
+          this.memos = response.data;
         })
         .catch(error => {
           Message.error('获取备忘录失败');
+          console.error('Error fetching memos:', error);
         });
     },
+
+    // 重置弹框
+    resetDialog() {
+      this.currentMemo = null;
+    }
   },
   mounted() {
     this.getMemos(); // 页面加载时获取未过期的备忘录
