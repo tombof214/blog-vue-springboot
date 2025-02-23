@@ -1,13 +1,19 @@
 <template>
   <div class="container">
-    <h2 class="title">PDF文件转换</h2>
+    <h2 class="title">PDF文件批量转换</h2>
     <form @submit.prevent="handleSubmit" class="form">
       <div class="form-group">
-        <label for="pdfFile" class="file-label">
-          <span v-if="!file">选择PDF文件</span>
-          <span v-else>{{ file.name }}</span>
+        <label for="pdfFiles" class="file-label">
+          <span v-if="!files || files.length === 0">选择PDF文件</span>
+          <span v-else>{{ files.length }} 个文件</span>
         </label>
-        <input type="file" id="pdfFile" ref="fileInput" @change="handleFileChange" required class="file-input" />
+        <input type="file" id="pdfFiles" ref="fileInput" @change="handleFileChange" multiple required class="file-input" />
+
+        <!-- 拖拽区域 -->
+        <div class="drag-drop-zone" @drop.prevent="handleDrop" @dragover.prevent>
+          <p v-if="files.length === 0">或者将文件拖拽到这里</p>
+          <p v-else>{{ files.map(file => file.name).join(', ') }}</p> <!-- 显示拖拽文件名 -->
+        </div>
       </div>
       <div class="form-group">
         <label for="outputDir">输出目录:</label>
@@ -38,25 +44,42 @@ export default {
   name: 'PdfUpload',
   data() {
     return {
-      file: null,
+      files: [], // 存储选中的多个文件
       outputDir: "D:", // 默认输出目录设置为D:
       format: "jpg",
       statusMessage: "",
-      uploadedFilePath: "",  // 保存返回的文件路径
     };
   },
   methods: {
     // 处理文件选择
     handleFileChange(event) {
-      this.file = event.target.files[0];
-      console.log("选择的文件:", this.file); // 打印选择的文件
+      this.files = Array.from(event.target.files); // 将选中的文件转换为数组
+      this.checkFiles(); // 检查文件类型
+      console.log("选择的文件:", this.files); // 打印选择的文件列表
     },
 
-    // 处理文件上传并返回文件路径
-    async handleFileUpload() {
-      console.log("开始上传文件...");
+    // 拖拽处理
+    handleDrop(event) {
+      const droppedFiles = Array.from(event.dataTransfer.files);
+      this.files = [...this.files, ...droppedFiles]; // 合并拖拽和选择的文件
+      this.checkFiles(); // 检查文件类型
+      console.log("拖拽的文件:", this.files);
+    },
+
+    // 文件格式检查
+    checkFiles() {
+      const invalidFiles = this.files.filter(file => !file.name.endsWith('.pdf'));
+      if (invalidFiles.length > 0) {
+        alert("请确保所有文件为PDF格式");
+        this.files = this.files.filter(file => file.name.endsWith('.pdf')); // 只保留PDF文件
+      }
+    },
+
+    // 批量上传文件
+    async handleFilesUpload() {
+      console.log("开始批量上传文件...");
       const formData = new FormData();
-      formData.append("file", this.file);
+      this.files.forEach(file => formData.append("files", file)); // 添加多个文件到 FormData 中
 
       try {
         const response = await axios.post("http://localhost:8888/pdf/upload", formData, {
@@ -64,57 +87,54 @@ export default {
             "Content-Type": "multipart/form-data",
           },
         });
-        console.log(response);
-        console.log("上传成功，返回的文件路径:", response.data); // 打印返回的文件路径
 
+        console.log("上传成功，返回的文件路径:", response.data);
         if (response.data) {
-          this.uploadedFilePath = response.data; // 获取返回的文件路径
+          this.statusMessage = `文件上传成功，返回文件路径: ${response.data}`;
         } else {
           this.statusMessage = "文件上传失败";
-          console.log("文件上传失败，没有返回路径"); // 打印上传失败信息
+          console.log("文件上传失败，没有返回路径");
         }
       } catch (error) {
         this.statusMessage = "文件上传失败: " + error.message;
-        console.error("上传文件时出错:", error); // 打印上传错误信息
+        console.error("上传文件时出错:", error);
       }
     },
 
     // 处理提交表单
     async handleSubmit() {
-      if (!this.file) {
-        this.statusMessage = "请先选择一个PDF文件!";
-        console.log("没有选择文件"); // 打印没有选择文件的提示
+      if (this.files.length === 0) {
+        this.statusMessage = "请先选择至少一个PDF文件!";
+        console.log("没有选择文件");
         return;
       }
 
       console.log("开始上传文件并获取文件路径...");
-      await this.handleFileUpload(); // 上传文件
-
-      if (!this.uploadedFilePath) {
-        this.statusMessage = "文件上传失败，无法继续转换!";
-        console.log("文件上传失败，无法继续转换"); // 打印上传失败的提示
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("pdfFile", this.uploadedFilePath);  // 发送文件路径给后台进行转换
-      formData.append("outputDir", this.outputDir);
-      formData.append("format", this.format);
+      await this.handleFilesUpload(); // 上传文件
 
       this.statusMessage = "正在转换，请稍候...";
 
       try {
-        console.log("发送转换请求...");
+        // 批量转换
+        const formData = new FormData();
+        formData.append("outputDir", this.outputDir);
+        formData.append("format", this.format);
+
+        // 传递多个文件路径到后端
+        this.files.forEach(file => {
+          formData.append("pdfFiles", file);
+        });
+
         const response = await axios.post("http://localhost:8888/pdf/convert", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
         });
 
-        console.log("转换成功，返回的结果:", response.data); // 打印转换成功的结果
+        console.log("转换成功，返回的结果:", response.data);
         this.statusMessage = response.data;
       } catch (error) {
-        console.error("转换失败:", error); // 打印转换失败的错误信息
+        console.error("转换失败:", error);
         this.statusMessage = "转换失败: " + error.message;
       }
     },
@@ -228,5 +248,20 @@ select:focus {
   background-color: #d4edda;
   border-color: #c3e6cb;
   color: #155724;
+}
+
+/* 拖拽区域样式 */
+.drag-drop-zone {
+  border: 2px dashed #007bff;
+  padding: 30px;
+  text-align: center;
+  color: #007bff;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-top: 20px;
+}
+
+.drag-drop-zone:hover {
+  background-color: #f0f8ff;
 }
 </style>
