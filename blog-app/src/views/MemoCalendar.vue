@@ -227,8 +227,8 @@ export default {
 
   .task-list {
     position: absolute;
-    bottom: 5px;
-    left: 5px;
+    top: 5px;
+    left: 15px;
     font-size: 12px;
     color: #4caf50;
     display: block; /* Ensure tasks are displayed block level */
@@ -240,11 +240,12 @@ export default {
 
   .task-name a {
     color: #4caf50;
-    text-decoration: underline;
+    text-decoration: none;
   }
 
   .task-name a:hover {
     color: #388e3c;
+    text-decoration: none;
   }
 
   button {
