@@ -73,12 +73,13 @@ public class MemoController {
 
         if (allMemoIds != null) {
             for (String memoId : allMemoIds) {
+                System.out.println(memoId);
                 // 获取备忘录的提醒时间
                 Double reminderTimeDouble = redisTemplate.opsForZSet().score(MEMO_KEY + ":zset", memoId);
 
                 if (reminderTimeDouble != null) {
                     long reminderTime = reminderTimeDouble.longValue();
-
+                    System.out.println(currentTime);
                     // 只返回未过期的备忘录
                     if (reminderTime > currentTime) {
                         String memoDetailsJson = (String) redisTemplate.opsForHash().get(MEMO_KEY, memoId);
@@ -92,4 +93,40 @@ public class MemoController {
 
         return memoDetailsList;
     }
+    @DeleteMapping("/memo/{id}")
+    public String deleteMemo(@PathVariable String id) {
+        // 从 Redis 中删除备忘录
+        redisTemplate.opsForHash().delete(MEMO_KEY, id);
+
+        // 从 Redis 的 ZSet 中删除该备忘录的提醒时间
+        redisTemplate.opsForZSet().remove(MEMO_KEY + ":zset", id);
+
+        return "备忘录已删除";
+    }
+    @PutMapping("/memo/{id}")
+    public String updateMemo(@PathVariable String id, @RequestBody MemoDetails updatedMemoDetails) {
+        // 从 Redis 中获取备忘录对象
+        String memoDetailsJson = (String) redisTemplate.opsForHash().get(MEMO_KEY, id);
+        if (memoDetailsJson == null) {
+            throw new RuntimeException("备忘录未找到");
+        }
+
+        // 更新备忘录对象
+        MemoDetails existingMemoDetails = JSONUtil.toBean(memoDetailsJson, MemoDetails.class);
+        existingMemoDetails.setTitle(updatedMemoDetails.getTitle());
+        existingMemoDetails.setBody(updatedMemoDetails.getBody());
+        existingMemoDetails.setCreatedDate(updatedMemoDetails.getCreatedDate()); // 可以选择是否更新创建时间
+        existingMemoDetails.setDueDate(updatedMemoDetails.getDueDate()); // 更新截止日期
+
+        // 将更新后的备忘录存入 Redis 中
+        String updatedMemoJson = JSONUtil.toJsonStr(existingMemoDetails);
+        redisTemplate.opsForHash().put(MEMO_KEY, id, updatedMemoJson);
+
+        // 更新 ZSet 中的提醒时间
+        long updatedReminderTime = Instant.parse(updatedMemoDetails.getDueDate()).toEpochMilli();
+        redisTemplate.opsForZSet().add(MEMO_KEY + ":zset", id, updatedReminderTime);
+
+        return "备忘录已更新";
+    }
+
 }

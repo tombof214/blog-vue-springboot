@@ -1,234 +1,257 @@
 <template>
-  <div id="write" v-title :data-title="title">
-    <el-container>
-      <base-header :simple="true">
-        <el-col :span="4" :offset="2">
-          <div class="me-write-info">{{ isEdit ? '编辑备忘录' : '写备忘录' }}</div>
-        </el-col>
-        <el-col :span="4" :offset="6">
-          <div class="me-write-btn">
-            <el-button round @click="saveMemo">{{ isEdit ? '更新' : '发布' }}</el-button>
-            <el-button round @click="cancel">取消</el-button>
-          </div>
-        </el-col>
-      </base-header>
+  <div id="customizedCalendar">
+    <!-- 按钮：显示/隐藏任务 -->
+    <el-button @click="toggleTasks" type="primary" round size="mini">
+      {{ showTasks ? '隐藏任务' : '显示任务' }}
+    </el-button>
 
-      <el-container class="me-area me-write-box">
-        <el-main class="me-write-main">
-          <div class="me-write-title">
-            <el-input resize="none"
-                      type="textarea"
-                      autosize
-                      v-model="articleForm.title"
-                      placeholder="请输入标题"
-                      class="me-write-input">
-            </el-input>
+    <el-calendar :first-day-of-week="7" v-model="value">
+      <template slot="dateCell" slot-scope="{ date, data }">
+        <div
+          slot="reference"
+          class="div-Calendar"
+          style="position: relative; z-index: 10"
+        >
+          <p>{{ data.day.split('-').slice(2).join('-') }}</p>
+
+          <!-- 任务列表，根据 showTasks 控制是否显示 -->
+          <div v-if="showTasks && tasks[data.day]" class="task-list" style="position: absolute; top: 10px; left: 10px; font-size: 12px; color: #4caf50; max-height: 80px; overflow-y: auto;">
+            <div v-for="(task, index) in tasks[data.day].split(',')" :key="index" @click="showTaskDetail(task)" class="task-name">
+              <a style="cursor: pointer; color: #4caf50; text-decoration: underline;">
+                {{ task }}
+              </a>
+            </div>
           </div>
 
-          <markdown-editor :editor="articleForm.editor" class="me-write-editor"></markdown-editor>
+        </div>
+        <div v-if="data.isSelected" id="selectP"></div>
+      </template>
+    </el-calendar>
 
-          <!-- Add Memo Date and Expiry Date -->
-          <div class="memo-dates">
-            <el-date-picker
-              v-model="articleForm.createdDate"
-              type="date"
-              placeholder="选择备忘录日期"
-              style="width: 100%; margin-bottom: 20px;">
-            </el-date-picker>
+    <div id="button">
+      <el-button @click="skip('preYear')" type="primary" round size="mini"><i class="el-icon-arrow-left"></i>年</el-button>
+      <el-button @click="skip('preMonth')" type="warning" round size="mini"><i class="el-icon-arrow-left"></i>月</el-button>
+      <el-button @click="skip('preDay')" type="success" round size="mini"><i class="el-icon-arrow-left"></i>日</el-button>
+      <el-button @click="skip('today')" type="info" round size="mini">今天</el-button>
+      <el-button @click="skip('postDay')" type="success" round size="mini">日<i class="el-icon-arrow-right"></i></el-button>
+      <el-button @click="skip('postMonth')" type="warning" round size="mini">月<i class="el-icon-arrow-right"></i></el-button>
+      <el-button @click="skip('postYear')" type="primary" round size="mini">年<i class="el-icon-arrow-right"></i></el-button>
+    </div>
 
-            <el-date-picker
-              v-model="articleForm.dueDate"
-              type="date"
-              placeholder="选择过期日期"
-              style="width: 100%; margin-bottom: 20px;">
-            </el-date-picker>
-          </div>
-        </el-main>
-      </el-container>
-    </el-container>
+    <!-- 弹出框，显示任务详情 -->
+    <el-dialog
+      :visible.sync="dialogVisible"
+      title="任务详情"
+      width="50%"
+      @close="resetDialog">
+      <div v-if="currentTask">
+        <h3>{{ currentTask.title }}</h3>
+        <p><strong>详细内容：</strong></p>
+        <p>{{ currentTask.body }}</p>
+        <p><strong>创建时间:</strong> {{ currentTask.createdDate }}</p>
+        <p><strong>过期时间:</strong> {{ currentTask.dueDate }}</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import BaseHeader from '@/views/BaseHeader'
-import MarkdownEditor from '@/components/markdown/MarkdownEditor'
-import axios from 'axios'
+import moment from 'moment';
+import axios from 'axios';
 
 export default {
-  name: 'MemoWrite',
-  mounted() {
-    const memoId = this.$route.query.memoId;
-    if (memoId) {
-      this.isEdit = true;
-      this.getMemoById(memoId);
-    } else {
-      this.isEdit = false;
-    }
-  },
+  name: "Calendar",
   data() {
     return {
-      isEdit: false, // Track if we are editing an existing memo
-      articleForm: {
-        title: '',
-        summary: '',
-        createdDate: new Date(), // Memo creation date
-        dueDate: '', // Memo expiry date
-        editor: {
-          value: '',
-          ref: '', // save mavonEditor instance
-        }
-      }
+      value: new Date(),
+      tasks: {}, // 用来存储日期和任务的映射
+      showTasks: false, // 控制任务的显示/隐藏
+      currentTask: null, // 当前选中的任务
+      dialogVisible: false, // 控制弹出框的显示
     }
   },
   computed: {
-    title () {
-      return this.isEdit ? '编辑备忘录 - For Fun' : '写备忘录 - For Fun';
+    selectDate() {
+      return moment(this.value).format("YYYY-MM-DD");
     }
   },
   methods: {
-    // 保存备忘录
-    saveMemo() {
-      // 检查输入内容
-      if (!this.articleForm.title || !this.articleForm.editor.value || !this.articleForm.dueDate) {
-        this.$message({message: '请填写完整信息', type: 'warning'});
-        return;
-      }
-
-      const createTime = new Date(this.articleForm.createdDate).toISOString();
-      console.log(createTime);
-      const reminderTime = new Date(this.articleForm.dueDate).toISOString();
-      const memoData = {
-        title: this.articleForm.title,
-        body: this.articleForm.editor.value,
-        createdDate: createTime, // 传递创建时间
-        dueDate: reminderTime, // 传递过期时间
-      };
-
-      if (this.isEdit) {
-        // 更新备忘录
-        const memoId = this.$route.query.memoId;
-        axios.put(`http://localhost:8888/api/memo/${memoId}`, memoData)
-          .then(() => {
-            this.$message({message: '备忘录已更新', type: 'success'});
-            this.$router.push('/');
-          })
-          .catch(error => {
-            this.$message({message: '更新失败', type: 'error'});
-            console.error('Error:', error);
-          });
-      } else {
-        // 新建备忘录
-        axios.post('http://localhost:8888/api/memo', memoData)
-          .then(() => {
-            this.$message({message: '备忘录已发布', type: 'success'});
-            this.$router.push('/');
-          })
-          .catch(error => {
-            this.$message({message: '发布失败', type: 'error'});
-            console.error('Error:', error);
-          });
-      }
+    skip(flag) {
+      if (flag === 'preYear') this.value = new Date(this.value.setFullYear(this.value.getFullYear() - 1));
+      else if (flag === 'preMonth') this.value = new Date(this.value.setMonth(this.value.getMonth() - 1));
+      else if (flag === 'preDay') this.value = new Date(this.value.setDate(this.value.getDate() - 1));
+      else if (flag === 'today') this.value = new Date();
+      else if (flag === 'postDay') this.value = new Date(this.value.setDate(this.value.getDate() + 1));
+      else if (flag === 'postMonth') this.value = new Date(this.value.setMonth(this.value.getMonth() + 1));
+      else if (flag === 'postYear') this.value = new Date(this.value.setFullYear(this.value.getFullYear() + 1));
     },
 
-    // 获取备忘录内容
-    getMemoById(id) {
-      axios.get(`http://localhost:8888/api/memo/${id}`)
+    // 从后端获取备忘录，并将任务根据日期添加到 tasks 对象中
+    getMemos() {
+      axios.get('http://localhost:8888/api/memos') // 修改为你自己后端的 API 地址
         .then(response => {
-          const memo = response.data;
-          this.articleForm.title = memo.title;
-          this.articleForm.editor.value = memo.body;
-          this.articleForm.createdDate = memo.createdDate;
-          this.articleForm.dueDate = memo.reminderTime;
+          // 遍历备忘录，按照截止日期（dueDate）将任务添加到 tasks 对象中
+          response.data.forEach(memo => {
+            const formattedDate = moment(memo.dueDate).format('YYYY-MM-DD');  // 格式化日期
+            if (!this.tasks[formattedDate]) {
+              this.tasks[formattedDate] = memo.title;
+            } else {
+              this.tasks[formattedDate] += `, ${memo.title}`;
+            }
+          });
         })
         .catch(error => {
-          this.$message({message: '获取备忘录失败', type: 'error'});
-          console.error('Error:', error);
+          console.error("获取备忘录失败:", error);
         });
     },
 
-    cancel() {
-      this.$confirm('备忘录未保存，是否继续?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        this.$router.push('/');
-      });
+    // 切换任务显示/隐藏
+    toggleTasks() {
+      this.showTasks = !this.showTasks; // 切换 showTasks 的值
     },
+
+    // 显示任务详情弹框
+    showTaskDetail(task) {
+      // 在弹框中显示任务详情，使用任务的标题获取更多信息
+      axios.get(`http://localhost:8888/api/memo/${task}`) // 假设任务 ID 或任务标题是唯一标识
+        .then(response => {
+          this.currentTask = response.data; // 设置任务详情
+          this.dialogVisible = true; // 显示弹框
+        })
+        .catch(error => {
+          console.error("获取任务详情失败:", error);
+        });
+    },
+
+    // 重置弹框内容
+    resetDialog() {
+      this.currentTask = null; // 清空当前任务
+    }
   },
-  components: {
-    'base-header': BaseHeader,
-    'markdown-editor': MarkdownEditor,
+  mounted() {
+    this.getMemos(); // 组件加载时获取备忘录
   }
 }
 </script>
 
-<style scoped>
-/* 样式 */
-.el-header {
-  position: fixed;
-  z-index: 1024;
-  min-width: 100%;
-  box-shadow: 0 2px 3px hsla(0, 0%, 7%, .1), 0 0 0 1px hsla(0, 0%, 7%, .1);
-}
+<style lang="scss" scoped>
+#customizedCalendar {
+  width: 100%;
+  height: 100%;
 
-.me-write-info {
-  line-height: 60px;
-  font-size: 18px;
-  font-weight: 600;
-}
+  #button {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 
-.me-write-btn {
-  margin-top: 10px;
-}
+  #selectP {
+    width: 30px;
+    height: 30px;
+    background-color: purple; /* 设置选中的日期为紫色 */
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.6;
+  }
 
-.me-write-box {
-  max-width: 700px;
-  margin: 80px auto 0;
-}
+  ::v-deep .el-calendar__header {
+    background-color: #3c4b63;
+    padding: 3px 5px;
+    border: none;
+    display: flex;
+    justify-content: center;
 
-.me-write-main {
-  padding: 0;
-}
+    .el-calendar__button-group {
+      display: none;
+    }
 
-.me-write-title {
-}
+    .el-calendar__title {
+      color: white !important;
+      font-size: 18px;
+      font-weight: bolder;
+    }
+  }
 
-.me-write-input textarea {
-  font-size: 32px;
-  font-weight: 600;
-  height: 20px;
-  border: none;
-}
+  ::v-deep .el-calendar__body {
+    padding: 0;
+  }
 
-.me-write-editor {
-  min-height: 650px !important;
-}
+  ::v-deep .el-calendar-table {
+    thead {
+      th {
+        padding: 0;
+        background-color: #3c4b63;
+        color: white;
+      }
+    }
 
-.memo-dates {
-  margin-bottom: 20px;
-}
+    .is-selected {
+      .el-calendar-day {
+        p {
+          color: black;
+        }
+      }
+    }
 
-.me-header-left {
-  margin-top: 10px;
-}
+    .el-calendar-day {
+      padding: 0;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
 
-.me-title img {
-  max-height: 2.4rem;
-  max-width: 100%;
-}
+      p {
+        color: black;
+        z-index: 1;
+        user-select: none;
+      }
+    }
+  }
 
-.me-write-toolbar-fixed {
-  position: fixed;
-  width: 700px !important;
-  top: 60px;
-}
+  ::v-deep .el-calendar-table__row {
+    .prev, .next {
+      .el-calendar-day {
+        p {
+          color: #f0d9d5;
+        }
+      }
+    }
 
-.v-note-op {
-  box-shadow: none !important;
-}
+    td {
+      &:first-child, &:last-child {
+        background-color: #f5f5f5;
+      }
+    }
+  }
 
-.auto-textarea-input, .auto-textarea-block {
-  font-size: 18px !important;
+  .task-list {
+    position: absolute;
+    top: 5px;
+    font-size: 12px;
+    color: #4caf50;
+    display: block;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+
+
+  .task-name {
+    margin-bottom: 5px; /* Adds space between tasks */
+  }
+
+  .task-name a {
+    color: #4caf50;
+    text-decoration: underline;
+  }
+
+  .task-name a:hover {
+    color: #388e3c;
+  }
+
+  button {
+    padding: 3px 10px;
+  }
 }
 </style>

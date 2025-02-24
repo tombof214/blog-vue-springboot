@@ -1,18 +1,21 @@
 <template>
   <div>
-    <h2>备忘录管理</h2>
+    <h2 class="page-title">备忘录管理</h2>
     <!-- 跳转到 MemoWrite 页面 -->
-    <el-button type="primary" @click="goToWritePage">添加备忘录</el-button>
+    <el-button type="primary" class="add-button" @click="goToWritePage">添加备忘录</el-button>
 
     <!-- 显示未过期的备忘录列表 -->
-    <el-table :data="memos" style="margin-top: 20px;">
-      <el-table-column label="备忘录" prop="title"></el-table-column>
-      <el-table-column label="截止时间" prop="dueDate"></el-table-column>
-      <el-table-column label="操作">
+    <el-table :data="memos" class="memo-table">
+      <el-table-column label="备忘录" prop="title" :min-width="150"></el-table-column>
+      <el-table-column label="创建时间" prop="createdDate" :min-width="180"></el-table-column>
+      <el-table-column label="截止时间" prop="dueDate" :min-width="180"></el-table-column>
+      <el-table-column label="操作" :min-width="250">
         <template slot-scope="scope">
-          <el-button @click="viewMemo(scope.row)" type="info">查看</el-button>
-          <el-button @click="goToWritePage(scope.row)" type="primary">编辑</el-button>
-          <el-button @click="deleteMemo(scope.$index)" type="danger">删除</el-button>
+          <div class="operation-buttons">
+            <el-button @click="viewMemo(scope.row)" type="info" class="table-button">查看</el-button>
+            <el-button @click="goToWritePage(scope.row)" type="primary" class="table-button">编辑</el-button>
+            <el-button @click="deleteMemo(scope.$index)" type="danger" class="table-button">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -22,7 +25,8 @@
       :visible.sync="dialogVisible"
       width="60%"
       title="备忘录详情"
-      @close="resetDialog">
+      @close="resetDialog"
+      class="memo-dialog">
       <div v-if="currentMemo">
         <h3>{{ currentMemo.title }}</h3>
         <p><strong>创建时间:</strong> {{ currentMemo.createdDate }}</p>
@@ -64,7 +68,6 @@ export default {
     // 查看备忘录详情
     viewMemo(memo) {
       this.currentMemo = memo;
-      console.log('Current Memo:', this.currentMemo); // 添加日志
       this.dialogVisible = true; // 打开弹框
     },
 
@@ -86,8 +89,16 @@ export default {
     getMemos() {
       axios.get('http://localhost:8888/api/memos')
         .then(response => {
-          console.log('Fetched memos:', response.data);
-          this.memos = response.data;
+          this.memos = response.data.map(memo => {
+            // Format the createdDate and dueDate to only show the date part (YYYY-MM-DD)
+            const formatDate = (date) => new Date(date).toISOString().split('T')[0];
+
+            return {
+              ...memo,
+              createdDate: formatDate(memo.createdDate),
+              dueDate: formatDate(memo.dueDate),
+            };
+          });
         })
         .catch(error => {
           Message.error('获取备忘录失败');
@@ -108,4 +119,71 @@ export default {
 
 <style scoped>
 /* 样式 */
+.page-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.add-button {
+  margin-bottom: 20px;
+}
+
+.memo-table {
+  width: 100%;
+  border: 1px solid #f0f0f0;
+  border-radius: 5px;
+  overflow: hidden;
+  table-layout: auto;
+}
+
+.el-table th, .el-table td {
+  padding: 12px 20px;
+  text-align: left;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.table-button {
+  margin: 0;
+  padding: 8px 16px;
+}
+
+.table-button:hover {
+  opacity: 0.8;
+}
+
+.memo-dialog h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.memo-dialog p {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.memo-dialog .el-dialog__body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .memo-table {
+    font-size: 14px;
+  }
+
+  .operation-buttons {
+    flex-direction: column;
+  }
+
+  .table-button {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+}
 </style>
