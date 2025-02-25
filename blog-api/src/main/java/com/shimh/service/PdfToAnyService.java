@@ -5,9 +5,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class PdfToAnyService {
 
-    private PdfConversionStrategy conversionStrategy;
+    private ConversionStrategy conversionStrategy;
 
-    public void setConversionStrategy(PdfConversionStrategy conversionStrategy) {
+    public void setConversionStrategy(ConversionStrategy conversionStrategy) {
         this.conversionStrategy = conversionStrategy;
     }
 

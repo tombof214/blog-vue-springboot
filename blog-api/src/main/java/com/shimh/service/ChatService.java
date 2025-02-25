@@ -48,7 +48,7 @@ public class ChatService {
 
         // 发送 POST 请求并获取响应
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-
+        System.out.println(response.getBody());
         // 返回响应体内容
         return response.getBody();
     }

@@ -1,13 +1,13 @@
 package com.shimh.service.impl;
 
-import com.shimh.service.PdfConversionStrategy;
+import com.shimh.service.ConversionStrategy;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import javax.imageio.ImageIO;
 
-public class PdfToPngConversionStrategy implements PdfConversionStrategy {
+public class PdfToPngConversionStrategy implements ConversionStrategy {
     @Override
     public void convert(String pdfFilePath, String outputDir) throws Exception {
         File pdfFile = new File(pdfFilePath);

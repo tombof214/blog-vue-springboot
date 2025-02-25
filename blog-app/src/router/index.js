@@ -81,6 +81,10 @@ const router = new Router({
         {
           path: '/MemoCalendar',  // 添加文件转换路由
           component: r => require.ensure([], () => r(require('@/views/MemoCalendar')), 'MemoCalendar')
+        },
+        {
+          path: '/InterviewQuestion',  // 添加文件转换路由
+          component: r => require.ensure([], () => r(require('@/views/InterviewQuestion')), 'InterviewQuestion')
         }
       ]
     },
